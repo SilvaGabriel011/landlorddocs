@@ -60,8 +60,8 @@ export default function LoginPage() {
           <h1>LandlordDocs</h1>
           <p className="muted">
             {mode === "signin"
-              ? "Sign in to manage your documents."
-              : "Create your account."}
+              ? "Landlord sign in — review your applicants' documents."
+              : "Create your landlord account."}
           </p>
         </div>
 
@@ -134,6 +134,10 @@ export default function LoginPage() {
               </a>
             </>
           )}
+        </p>
+
+        <p className="muted">
+          Applying to rent? <a href="/tenant">Sign in here</a>.
         </p>
       </div>
     </main>
