@@ -10,16 +10,19 @@ How it works:
    their **name, email, and a 4-digit PIN** of their choice. Next time,
    they sign back in with just **name + PIN**.
 2. They upload their documents — PDF, PNG, or JPEG, **several at once** —
-   and can file each batch under a **household member** (spouse, guarantor,
-   mother…), keeping everyone on the application in one account. If an
+   and can file each batch under another person on the application
+   (someone **moving in with them** or a **supporter** — guarantor /
+   co-signer), keeping the whole application in one account. If an
    OpenAI API key is configured, each document is read by the AI and
    **categorized automatically** ("Pay stub", "Bank statement", "ID
    document"…) with a clean title.
-3. The **landlord** signs in with email + password and sees the **list of
-   applicants**, each with a per-person summary of what they sent
-   (`Gabriel: Pay stub × 2 · Ana: Bank statement × 1`).
-4. Clicking an applicant shows their documents grouped by person, with
-   **view** and **download** buttons.
+3. The **landlord** needs **no account**: they open the app, tap
+   "I'm the landlord", and see every application — alone or with its
+   people — each with a per-person summary
+   (`Gabriel: Pay stub × 2 · Ana (moving in): ID document × 1`).
+   Optionally, set `LANDLORD_CODE` so the landlord types a code once.
+4. Opening an application shows the documents grouped by person; opening
+   a document gives **Print** and **Download** buttons.
 5. Files live in a private Supabase Storage bucket and are only served
    through short-lived signed URLs — there are no public file links.
 
@@ -69,15 +72,14 @@ npm run dev
 
 Open http://localhost:3000:
 
-- **Landlord:** go to "I'm the landlord", create your account (email +
-  password), and you'll land on the applicant list.
+- **Landlord:** tap "I'm the landlord" — no account needed. If you set
+  `LANDLORD_CODE`, you'll be asked for it once.
 - **Applicants:** go to "I'm applying to rent", register with name +
   email + a 4-digit PIN, and upload documents.
 
-> Tip: after you have created your own landlord account, turn off new
-> sign-ups in Supabase (**Authentication → Sign In / Up → disable
-> "Allow new users to sign up"**) so nobody else can register as a
-> landlord. Applicant accounts are separate and stay open.
+> Strongly recommended for production: set `LANDLORD_CODE`. Without it,
+> anyone who has the app's URL can open the landlord view and see every
+> uploaded document.
 
 ## 4. Deploy to Vercel
 
@@ -89,21 +91,31 @@ Open http://localhost:3000:
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
    - `SUPABASE_SERVICE_ROLE_KEY`
    - `OPENAI_API_KEY` (optional, for auto-categorization)
+   - `LANDLORD_CODE` (optional but strongly recommended — the code the
+     landlord types once to open the dashboard)
    - `SESSION_SECRET` (optional but recommended — any long random string)
 3. Deploy, and share the app URL with your applicants.
 
+(There's a fill-in template for all of these in
+[`vercel.env.example`](vercel.env.example) — copy it to
+`.env.vercel.local`, fill it, and paste the whole thing into Vercel's
+env-vars page in one go.)
+
 ## Notes on security
 
-- Landlords are Supabase auth users. Row level security lets them **read**
-  applicants and documents, nothing more.
-- Applicants have no Supabase account: the app server verifies their
-  name + PIN (stored as a scrypt hash in a service-role-only table) and
-  gives them an HMAC-signed, HTTP-only session cookie. All their reads and
-  writes go through server routes.
-- A 4-digit PIN is convenience-grade security: sign-in attempts are
-  throttled, but don't use this app for documents that would be
-  catastrophic to leak — it's designed for the practical case of a rental
-  application, not for secrets.
+- Nobody talks to the database from the browser: row level security is
+  enabled with no policies, and every read and write goes through the app
+  server using the service role key.
+- The landlord has no account. With `LANDLORD_CODE` set, the dashboard
+  asks for the code once and remembers it in a signed cookie; without it,
+  the dashboard is open to anyone with the URL.
+- Applicants have no Supabase account either: the app server verifies
+  their name + PIN (stored as a scrypt hash) and gives them an
+  HMAC-signed, HTTP-only session cookie.
+- A 4-digit PIN and a shared landlord code are convenience-grade
+  security: sign-in attempts are throttled, but don't use this app for
+  documents that would be catastrophic to leak — it's designed for the
+  practical case of a rental application, not for secrets.
 - The storage bucket is private. Files are only ever served through
   signed URLs valid for 5 minutes, after the server has checked who is
   asking.

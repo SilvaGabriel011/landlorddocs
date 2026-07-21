@@ -12,7 +12,7 @@ export default async function TenantDocumentsPage() {
   const supabase = createAdminClient();
   const { data: documents } = await supabase
     .from("documents")
-    .select("id, name, mime_type, doc_type, person_name, created_at")
+    .select("id, name, mime_type, doc_type, person_name, person_role, created_at")
     .eq("applicant_id", applicant.id)
     .order("created_at", { ascending: false });
 

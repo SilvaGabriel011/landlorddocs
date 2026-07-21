@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { isLandlord } from "@/lib/landlord";
+
+export const dynamic = "force-dynamic";
 
 type Doc = {
   id: string;
@@ -8,21 +11,25 @@ type Doc = {
   mime_type: string;
   doc_type: string | null;
   person_name: string | null;
+  person_role: string | null;
   created_at: string;
 };
+
+function roleLabel(role: string | null): string | null {
+  if (role === "resident") return "moving in";
+  if (role === "supporter") return "supporter (guarantor / co-signer)";
+  return null;
+}
 
 export default async function ApplicantPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { id } = await params;
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  if (!(await isLandlord())) redirect("/login");
 
-  if (!user) redirect("/login");
+  const { id } = await params;
+  const supabase = createAdminClient();
 
   const { data: applicant } = await supabase
     .from("applicants")
@@ -34,7 +41,7 @@ export default async function ApplicantPage({
 
   const { data: documents } = await supabase
     .from("documents")
-    .select("id, name, mime_type, doc_type, person_name, created_at")
+    .select("id, name, mime_type, doc_type, person_name, person_role, created_at")
     .eq("applicant_id", id)
     .order("created_at", { ascending: false });
 
@@ -50,22 +57,32 @@ export default async function ApplicantPage({
   }
   const groups = Array.from(byPerson.entries())
     .sort(([a], [b]) => (a === "" ? -1 : b === "" ? 1 : a.localeCompare(b)))
-    .map(([person, personDocs]) => ({
-      label:
-        person === "" ? `${applicant.name} (main applicant)` : person,
-      docs: personDocs,
-    }));
+    .map(([person, personDocs]) => {
+      const role = roleLabel(
+        personDocs.find((d) => d.person_role)?.person_role ?? null
+      );
+      const label =
+        person === ""
+          ? `${applicant.name} (main applicant)`
+          : role
+            ? `${person} — ${role}`
+            : person;
+      return { label, docs: personDocs };
+    });
 
   return (
     <div className="stack">
       <div>
         <p className="muted">
-          <Link href="/dashboard">← All applicants</Link>
+          <Link href="/dashboard">← All applications</Link>
         </p>
         <h1>{applicant.name}</h1>
         <p className="muted">
           {applicant.email} · registered{" "}
           {new Date(applicant.created_at).toLocaleDateString()}
+          {groups.length > 1
+            ? ` · ${groups.length} people on this application`
+            : " · applying alone"}
         </p>
       </div>
 
@@ -90,14 +107,12 @@ export default async function ApplicantPage({
                     </div>
                   </div>
                   <div className="row">
-                    <a
+                    <Link
                       className="btn btn-secondary btn-small"
-                      href={`/dashboard/file/${doc.id}`}
-                      target="_blank"
-                      rel="noreferrer"
+                      href={`/dashboard/view/${doc.id}`}
                     >
                       View
-                    </a>
+                    </Link>
                     <a
                       className="btn btn-secondary btn-small"
                       href={`/dashboard/file/${doc.id}?download=1`}

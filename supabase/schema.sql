@@ -40,29 +40,25 @@ create table if not exists public.documents (
   -- account holder (main applicant); otherwise a household member's
   -- name ("spouse", "mother", ...) as typed by the account holder.
   person_name text,
+  -- How that person is on the application: 'resident' (will live in the
+  -- home) or 'supporter' (guarantor / co-signer). Null for the main
+  -- applicant's own documents.
+  person_role text
+    check (person_role in ('resident', 'supporter') or person_role is null),
   created_at timestamptz not null default now()
 );
 
 -- ============================================================
 -- Row Level Security
--- Landlords are Supabase auth users: they may READ applicants and their
--- documents, nothing else. Applicants never touch the database from the
--- browser - the app server acts for them with the service role key.
+-- Nobody talks to these tables from the browser: applicants sign in with
+-- name + PIN and the landlord views without an account, so every read
+-- and write goes through the app server with the service role key.
+-- RLS is enabled with NO policies - anon and authenticated see nothing.
 -- ============================================================
 
 alter table public.applicants enable row level security;
 alter table public.applicant_credentials enable row level security;
 alter table public.documents enable row level security;
-
-create policy "Landlords read applicants"
-  on public.applicants for select to authenticated
-  using (true);
-
-create policy "Landlords read documents"
-  on public.documents for select to authenticated
-  using (true);
-
--- No policies on applicant_credentials: service role only.
 
 -- ============================================================
 -- Storage: private bucket for the document files.
