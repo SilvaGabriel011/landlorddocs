@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isLandlord } from "@/lib/landlord";
+import CopyButton from "./CopyButton";
 
 export const dynamic = "force-dynamic";
 
@@ -33,7 +34,7 @@ export default async function ApplicantPage({
 
   const { data: applicant } = await supabase
     .from("applicants")
-    .select("id, name, email, created_at")
+    .select("id, name, email, phone, created_at")
     .eq("id", id)
     .maybeSingle();
 
@@ -46,6 +47,17 @@ export default async function ApplicantPage({
     .order("created_at", { ascending: false });
 
   const docs = (documents ?? []) as Doc[];
+
+  const { data: contactRows } = await supabase
+    .from("application_people")
+    .select("person_name, email, phone")
+    .eq("applicant_id", id);
+  const contacts = new Map(
+    (contactRows ?? []).map((c) => [
+      c.person_name as string,
+      { email: c.email as string | null, phone: c.phone as string | null },
+    ])
+  );
 
   // Group by person on the application, the main applicant first.
   const byPerson = new Map<string, Doc[]>();
@@ -67,7 +79,11 @@ export default async function ApplicantPage({
           : role
             ? `${person} — ${role}`
             : person;
-      return { label, docs: personDocs };
+      const contact =
+        person === ""
+          ? { email: applicant.email, phone: applicant.phone }
+          : (contacts.get(person) ?? { email: null, phone: null });
+      return { label, docs: personDocs, contact };
     });
 
   return (
@@ -78,8 +94,8 @@ export default async function ApplicantPage({
         </p>
         <h1>{applicant.name}</h1>
         <p className="muted">
-          {applicant.email} · registered{" "}
-          {new Date(applicant.created_at).toLocaleDateString()}
+          <a href={`mailto:${applicant.email}`}>{applicant.email}</a> ·
+          registered {new Date(applicant.created_at).toLocaleDateString()}
           {groups.length > 1
             ? ` · ${groups.length} people on this application`
             : " · applying alone"}
@@ -92,9 +108,29 @@ export default async function ApplicantPage({
       ) : (
         groups.map((group) => (
           <div key={group.label} className="stack">
-            <h2 style={{ fontSize: "1rem" }}>
-              {group.label} ({group.docs.length})
-            </h2>
+            <div className="spread">
+              <h2 style={{ fontSize: "1rem" }}>
+                {group.label} ({group.docs.length})
+              </h2>
+              {(group.contact.email || group.contact.phone) && (
+                <span className="row" style={{ gap: 8 }}>
+                  {group.contact.email && (
+                    <a
+                      className="muted"
+                      href={`mailto:${group.contact.email}`}
+                    >
+                      {group.contact.email}
+                    </a>
+                  )}
+                  {group.contact.phone && (
+                    <>
+                      <span className="muted">{group.contact.phone}</span>
+                      <CopyButton text={group.contact.phone} />
+                    </>
+                  )}
+                </span>
+              )}
+            </div>
             <ul className="item-list">
               {group.docs.map((doc) => (
                 <li key={doc.id} className="item">

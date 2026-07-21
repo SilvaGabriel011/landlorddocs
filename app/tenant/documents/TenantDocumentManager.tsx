@@ -16,6 +16,12 @@ type Document = {
 const NEW_PERSON = "__new__";
 const AUTO_PERSON = "__auto__";
 
+type Contact = {
+  person_name: string;
+  email: string | null;
+  phone: string | null;
+};
+
 export function roleLabel(role: string | null): string | null {
   if (role === "resident") return "will live here";
   if (role === "supporter") return "supporter";
@@ -24,9 +30,13 @@ export function roleLabel(role: string | null): string | null {
 
 export default function TenantDocumentManager({
   applicantName,
+  selfContact,
+  contacts,
   documents,
 }: {
   applicantName: string;
+  selfContact: { email: string; phone: string | null };
+  contacts: Contact[];
   documents: Document[];
 }) {
   const router = useRouter();
@@ -91,10 +101,17 @@ export default function TenantDocumentManager({
   }
 
   const [personBusy, setPersonBusy] = useState<string | null>(null);
+  // Which person's contact form is open ("" = the main applicant).
+  const [contactOpen, setContactOpen] = useState<string | null>(null);
+  const [contactEmail, setContactEmail] = useState("");
+  const [contactPhone, setContactPhone] = useState("");
 
   async function patchPerson(
     from: string,
-    changes: { to?: string | null; role?: string | null }
+    changes: { to?: string | null; role?: string | null } & {
+      email?: string | null;
+      phone?: string | null;
+    }
   ) {
     setPersonBusy(from);
     setError(null);
@@ -106,9 +123,18 @@ export default function TenantDocumentManager({
     if (!res.ok) {
       const data = await res.json().catch(() => null);
       setError(data?.error ?? "Could not update this person.");
+      setPersonBusy(null);
+      return;
     }
     setPersonBusy(null);
+    setContactOpen(null);
     router.refresh();
+  }
+
+  function openContact(key: string, email: string | null, phone: string | null) {
+    setContactOpen(key);
+    setContactEmail(email ?? "");
+    setContactPhone(phone ?? "");
   }
 
   function handleRename(from: string) {
@@ -173,15 +199,21 @@ export default function TenantDocumentManager({
       return { label, docs };
     });
 
-  // People overview for the manage section: name, role and doc count.
+  // People overview for the manage section: name, role, doc count, and
+  // contact info (the main applicant's comes from the account).
   const people = groups.map((g) => {
     const raw = g.docs[0]?.person_name ?? null;
+    const contact = raw
+      ? (contacts.find((c) => c.person_name === raw) ?? null)
+      : null;
     return {
-      key: g.label,
+      key: raw ?? "",
       name: raw,
       isMain: raw === null,
       role: g.docs.find((d) => d.person_role)?.person_role ?? null,
       count: g.docs.length,
+      email: raw ? (contact?.email ?? null) : selfContact.email,
+      phone: raw ? (contact?.phone ?? null) : selfContact.phone,
     };
   });
 
@@ -213,36 +245,101 @@ export default function TenantDocumentManager({
                           : "No tag yet"}{" "}
                     · {p.count} document{p.count === 1 ? "" : "s"}
                   </div>
+                  <div className="muted">
+                    {p.email || p.phone
+                      ? [p.email, p.phone].filter(Boolean).join(" · ")
+                      : "No contact info yet — the landlord won't see how to reach them."}
+                  </div>
                 </div>
-                {!p.isMain && p.name && (
-                  <div className="row">
-                    <select
-                      aria-label={`Tag for ${p.name}`}
-                      value={p.role ?? ""}
-                      disabled={personBusy === p.name}
-                      onChange={(e) =>
-                        patchPerson(p.name!, { role: e.target.value || null })
-                      }
-                      style={{ width: "auto" }}
-                    >
-                      <option value="">No tag</option>
-                      <option value="resident">Moving in</option>
-                      <option value="supporter">Supporter</option>
-                    </select>
-                    <button
-                      className="btn btn-secondary btn-small"
-                      onClick={() => handleRename(p.name!)}
-                      disabled={personBusy === p.name}
-                    >
-                      Rename
-                    </button>
-                    <button
-                      className="btn btn-secondary btn-small"
-                      onClick={() => handleMakeMe(p.name!)}
-                      disabled={personBusy === p.name}
-                    >
-                      This is me
-                    </button>
+                <div className="row">
+                  {!p.isMain && p.name && (
+                    <>
+                      <select
+                        aria-label={`Tag for ${p.name}`}
+                        value={p.role ?? ""}
+                        disabled={personBusy === p.name}
+                        onChange={(e) =>
+                          patchPerson(p.name!, {
+                            role: e.target.value || null,
+                          })
+                        }
+                        style={{ width: "auto" }}
+                      >
+                        <option value="">No tag</option>
+                        <option value="resident">Moving in</option>
+                        <option value="supporter">Supporter</option>
+                      </select>
+                      <button
+                        className="btn btn-secondary btn-small"
+                        onClick={() => handleRename(p.name!)}
+                        disabled={personBusy === p.name}
+                      >
+                        Rename
+                      </button>
+                      <button
+                        className="btn btn-secondary btn-small"
+                        onClick={() => handleMakeMe(p.name!)}
+                        disabled={personBusy === p.name}
+                      >
+                        This is me
+                      </button>
+                    </>
+                  )}
+                  <button
+                    className="btn btn-secondary btn-small"
+                    onClick={() =>
+                      contactOpen === p.key
+                        ? setContactOpen(null)
+                        : openContact(p.key, p.email, p.phone)
+                    }
+                    disabled={personBusy === p.key}
+                  >
+                    {p.email || p.phone ? "Edit contact" : "Add contact"}
+                  </button>
+                </div>
+                {contactOpen === p.key && (
+                  <div className="stack" style={{ width: "100%" }}>
+                    <div>
+                      <label htmlFor={`contact-email-${p.key}`}>Email</label>
+                      <input
+                        id={`contact-email-${p.key}`}
+                        type="email"
+                        value={contactEmail}
+                        onChange={(e) => setContactEmail(e.target.value)}
+                        placeholder="name@example.com"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor={`contact-phone-${p.key}`}>Phone</label>
+                      <input
+                        id={`contact-phone-${p.key}`}
+                        type="tel"
+                        inputMode="tel"
+                        value={contactPhone}
+                        onChange={(e) => setContactPhone(e.target.value)}
+                        placeholder="+61 400 000 000"
+                      />
+                    </div>
+                    <div className="row">
+                      <button
+                        className="btn btn-small"
+                        disabled={personBusy === p.key}
+                        onClick={() =>
+                          patchPerson(p.key, {
+                            email: contactEmail.trim() || null,
+                            phone: contactPhone.trim() || null,
+                          })
+                        }
+                      >
+                        {personBusy === p.key ? "Saving…" : "Save contact"}
+                      </button>
+                      <button
+                        className="btn btn-secondary btn-small"
+                        onClick={() => setContactOpen(null)}
+                      >
+                        Cancel
+                      </button>
+                    </div>
                   </div>
                 )}
               </li>

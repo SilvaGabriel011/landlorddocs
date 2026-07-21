@@ -16,6 +16,11 @@ export default async function TenantDocumentsPage() {
     .eq("applicant_id", applicant.id)
     .order("created_at", { ascending: false });
 
+  const { data: contacts } = await supabase
+    .from("application_people")
+    .select("person_name, email, phone")
+    .eq("applicant_id", applicant.id);
+
   return (
     <>
       <nav className="topnav">
@@ -42,6 +47,8 @@ export default async function TenantDocumentsPage() {
           </div>
           <TenantDocumentManager
             applicantName={applicant.name}
+            selfContact={{ email: applicant.email, phone: applicant.phone }}
+            contacts={contacts ?? []}
             documents={documents ?? []}
           />
         </div>
