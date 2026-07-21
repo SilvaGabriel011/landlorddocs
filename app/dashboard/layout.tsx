@@ -13,7 +13,9 @@ export default function DashboardLayout({
           </Link>
           <div className="row">
             <Link href="/dashboard">Documents</Link>
+            <Link href="/dashboard/invites">Invites</Link>
             <Link href="/dashboard/links">Share links</Link>
+            <Link href="/dashboard/activity">Activity</Link>
             <SignOutButton />
           </div>
         </div>

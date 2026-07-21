@@ -4,7 +4,11 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
-type DocumentOption = { id: string; name: string };
+type DocumentOption = {
+  id: string;
+  name: string;
+  person_name: string | null;
+};
 
 type ShareLink = {
   id: string;
@@ -220,6 +224,9 @@ export default function LinkManager({
                     onChange={() => toggleDoc(doc.id)}
                   />
                   {doc.name}
+                  <span className="muted">
+                    ({doc.person_name ?? "you"})
+                  </span>
                 </label>
               ))}
             </div>

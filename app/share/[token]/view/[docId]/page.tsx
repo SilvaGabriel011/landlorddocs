@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { resolveShareToken } from "@/lib/share";
+import { logShareActivity, resolveShareToken } from "@/lib/share";
+import ViewerTools from "./ViewerTools";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +19,8 @@ export default async function DocumentViewPage({
   const doc = share.documents.find((d) => d.id === docId);
   if (!doc) notFound();
 
+  await logShareActivity(share.linkId, "viewed", doc);
+
   const fileUrl = `/share/${token}/file/${doc.id}`;
   const isPdf = doc.mime_type === "application/pdf";
 
@@ -25,10 +28,19 @@ export default async function DocumentViewPage({
     <main className="container">
       <div className="stack">
         <div className="spread">
-          <h1>{doc.name}</h1>
-          <Link href={`/share/${token}`} className="btn btn-secondary btn-small">
-            ← All documents
-          </Link>
+          <div>
+            <h1>{doc.name}</h1>
+            {doc.person_name && <p className="muted">From {doc.person_name}</p>}
+          </div>
+          <div className="row">
+            <ViewerTools token={token} docId={doc.id} fileUrl={fileUrl} />
+            <Link
+              href={`/share/${token}`}
+              className="btn btn-secondary btn-small"
+            >
+              ← All documents
+            </Link>
+          </div>
         </div>
 
         {isPdf ? (
@@ -37,14 +49,6 @@ export default async function DocumentViewPage({
           // eslint-disable-next-line @next/next/no-img-element
           <img src={fileUrl} alt={doc.name} className="viewer-image" />
         )}
-
-        <p className="muted">
-          Having trouble viewing it?{" "}
-          <a href={fileUrl} target="_blank" rel="noopener noreferrer">
-            Open the file in a new tab
-          </a>
-          .
-        </p>
       </div>
     </main>
   );

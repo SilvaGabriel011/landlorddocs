@@ -13,7 +13,7 @@ export default async function LinksPage() {
   const [{ data: documents }, { data: links }] = await Promise.all([
     supabase
       .from("documents")
-      .select("id, name")
+      .select("id, name, person_name")
       .order("created_at", { ascending: false }),
     supabase
       .from("share_links")

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { resolveShareToken } from "@/lib/share";
+import { logShareActivity, resolveShareToken } from "@/lib/share";
 
 export const dynamic = "force-dynamic";
 
@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 // short-lived signed URL for the private storage object. If the link has
 // expired (or was deleted), the landlord gets a 403/404 instead of the file.
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ token: string; docId: string }> }
 ) {
   const { token, docId } = await params;
@@ -29,10 +29,16 @@ export async function GET(
     );
   }
 
+  const isDownload =
+    new URL(request.url).searchParams.get("download") === "1";
+  if (isDownload) {
+    await logShareActivity(share.linkId, "downloaded", doc);
+  }
+
   const supabase = createAdminClient();
   const { data, error } = await supabase.storage
     .from("documents")
-    .createSignedUrl(doc.file_path, 300);
+    .createSignedUrl(doc.file_path, 300, isDownload ? { download: true } : {});
 
   if (error || !data?.signedUrl) {
     return NextResponse.json(

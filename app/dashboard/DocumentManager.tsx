@@ -9,6 +9,7 @@ type Document = {
   name: string;
   file_path: string;
   mime_type: string;
+  person_name: string | null;
   created_at: string;
 };
 
@@ -147,6 +148,7 @@ export default function DocumentManager({
                 <div>
                   <div className="item-title">{doc.name}</div>
                   <div className="muted">
+                    {doc.person_name ? `From ${doc.person_name}` : "Yours"} ·{" "}
                     {doc.mime_type === "application/pdf" ? "PDF" : "Image"} ·
                     added {new Date(doc.created_at).toLocaleDateString()}
                   </div>

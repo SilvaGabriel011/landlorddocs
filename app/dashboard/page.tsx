@@ -12,7 +12,7 @@ export default async function DashboardPage() {
 
   const { data: documents } = await supabase
     .from("documents")
-    .select("id, name, file_path, mime_type, created_at")
+    .select("id, name, file_path, mime_type, person_name, created_at")
     .order("created_at", { ascending: false });
 
   return (

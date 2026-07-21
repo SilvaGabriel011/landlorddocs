@@ -7,11 +7,21 @@ How it works:
 
 1. **You** sign in, upload your documents (PDF, PNG, or JPEG) and give each
    one a name.
-2. You create a **share link** for each landlord and decide **how long the
+2. You can **invite other people** on your application (a partner, roommate,
+   guarantor…) to upload documents through a link, without an account. You
+   decide which documents to request from each person — the name and the
+   accepted file type (PDF, image, or either) of every one.
+3. You create a **share link** for each landlord and decide **how long the
    link stays valid** (1, 3, 7, or 30 days — or any custom date and time).
-3. The **landlord** opens the link — no account needed — and sees a list of
-   document names. Clicking a name opens the PDF or image.
-4. When the link expires (or you delete it), the landlord immediately loses
+   A link can include documents from everyone on the application.
+4. The **landlord** opens the link — no account needed — and sees how many
+   people are on the application and each person's documents. Clicking a
+   name opens the PDF or image, with a download button.
+5. The **Activity** page shows you what the landlord did: when they opened
+   the link and which documents they viewed, downloaded, or printed.
+   (Printing is only detected when done in the browser — printing a file
+   after downloading it happens outside the app and cannot be seen.)
+6. When the link expires (or you delete it), the landlord immediately loses
    access. The files themselves live in a private Supabase Storage bucket
    and are only ever served through short-lived signed URLs.
 
@@ -26,6 +36,10 @@ on [Vercel](https://vercel.com).
    [`supabase/schema.sql`](supabase/schema.sql), and run it. This creates
    the tables, the security policies, and the private `documents` storage
    bucket.
+
+   > Already ran an older version of `schema.sql`? Run
+   > [`supabase/upgrade-invites-activity.sql`](supabase/upgrade-invites-activity.sql)
+   > instead — it only adds the invite and activity tables.
 3. Go to **Project Settings → API** and note down:
    - the **Project URL**
    - the **anon public** key
