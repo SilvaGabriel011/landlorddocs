@@ -12,7 +12,7 @@ export default async function TenantDocumentsPage() {
   const supabase = createAdminClient();
   const { data: documents } = await supabase
     .from("documents")
-    .select("id, name, mime_type, doc_type, created_at")
+    .select("id, name, mime_type, doc_type, person_name, created_at")
     .eq("applicant_id", applicant.id)
     .order("created_at", { ascending: false });
 
@@ -35,11 +35,15 @@ export default async function TenantDocumentsPage() {
             <h1>Your documents</h1>
             <p className="muted">
               Upload the documents for your rental application (PDF, PNG, or
-              JPEG — several at once is fine). They are organized
-              automatically and shared with the landlord.
+              JPEG — several at once is fine). You can also add documents for
+              the people applying with you (spouse, guarantor…). Everything is
+              organized automatically and shared with the landlord.
             </p>
           </div>
-          <TenantDocumentManager documents={documents ?? []} />
+          <TenantDocumentManager
+            applicantName={applicant.name}
+            documents={documents ?? []}
+          />
         </div>
       </main>
     </>

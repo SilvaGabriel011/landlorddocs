@@ -9,15 +9,17 @@ How it works:
 1. An **applicant** (someone who wants to rent) creates an account with
    their **name, email, and a 4-digit PIN** of their choice. Next time,
    they sign back in with just **name + PIN**.
-2. They upload their documents — PDF, PNG, or JPEG, **several at once**.
-   If an OpenAI API key is configured, each document is read by the AI and
+2. They upload their documents — PDF, PNG, or JPEG, **several at once** —
+   and can file each batch under a **household member** (spouse, guarantor,
+   mother…), keeping everyone on the application in one account. If an
+   OpenAI API key is configured, each document is read by the AI and
    **categorized automatically** ("Pay stub", "Bank statement", "ID
    document"…) with a clean title.
 3. The **landlord** signs in with email + password and sees the **list of
-   applicants**, each with a summary of what they sent
-   (`Pay stub × 2 · Bank statement × 1`).
-4. Clicking an applicant shows their documents, with **view** and
-   **download** buttons.
+   applicants**, each with a per-person summary of what they sent
+   (`Gabriel: Pay stub × 2 · Ana: Bank statement × 1`).
+4. Clicking an applicant shows their documents grouped by person, with
+   **view** and **download** buttons.
 5. Files live in a private Supabase Storage bucket and are only served
    through short-lived signed URLs — there are no public file links.
 
@@ -37,6 +39,11 @@ on [Vercel](https://vercel.com).
    > [`supabase/upgrade-tenant-login.sql`](supabase/upgrade-tenant-login.sql)
    > instead — note that it deletes the old model's data (documents, share
    > links, invites, activity).
+   >
+   > Already ran the login-model schema before household members existed?
+   > Just run
+   > [`supabase/upgrade-household-members.sql`](supabase/upgrade-household-members.sql)
+   > — it only adds a column, nothing is deleted.
 3. Go to **Project Settings → API** and note down:
    - the **Project URL**
    - the **anon public** key
