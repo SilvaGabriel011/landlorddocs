@@ -17,7 +17,20 @@ create table if not exists public.applicants (
   -- Lowercased name, used as the unique sign-in identifier.
   name_key text not null unique,
   email text not null,
+  -- Optional contact number, shown to the landlord.
+  phone text,
   created_at timestamptz not null default now()
+);
+
+-- Contact info for the OTHER people on an application (the main
+-- applicant's contact lives on applicants). Keyed by the person's name
+-- as it appears on their documents.
+create table if not exists public.application_people (
+  applicant_id uuid not null references public.applicants (id) on delete cascade,
+  person_name text not null,
+  email text,
+  phone text,
+  primary key (applicant_id, person_name)
 );
 
 -- The PIN hashes live in their own table with no RLS policies at all, so
@@ -59,6 +72,7 @@ create table if not exists public.documents (
 alter table public.applicants enable row level security;
 alter table public.applicant_credentials enable row level security;
 alter table public.documents enable row level security;
+alter table public.application_people enable row level security;
 
 -- ============================================================
 -- Storage: private bucket for the document files.

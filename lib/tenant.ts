@@ -18,6 +18,7 @@ export type Applicant = {
   id: string;
   name: string;
   email: string;
+  phone: string | null;
   created_at: string;
 };
 
@@ -113,7 +114,7 @@ export async function getApplicant(): Promise<Applicant | null> {
   const supabase = createAdminClient();
   const { data } = await supabase
     .from("applicants")
-    .select("id, name, email, created_at")
+    .select("id, name, email, phone, created_at")
     .eq("id", applicantId)
     .maybeSingle();
 

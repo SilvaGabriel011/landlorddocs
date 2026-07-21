@@ -22,7 +22,9 @@ How it works:
    people — each with a per-person summary
    (`Gabriel: Pay stub × 2 · Ana (moving in): ID document × 1`).
    Optionally, set `LANDLORD_CODE` so the landlord types a code once.
-4. Opening an application shows the documents grouped by person; opening
+4. Opening an application shows the documents grouped by person — each
+   person's line shows their **email (as a mailto link)** and **phone
+   (with a copy button)** when the applicant filled them in — and opening
    a document gives **Print** and **Download** buttons.
 5. Files live in a private Supabase Storage bucket and are only served
    through short-lived signed URLs — there are no public file links.
@@ -48,6 +50,10 @@ on [Vercel](https://vercel.com).
    > Just run
    > [`supabase/upgrade-household-members.sql`](supabase/upgrade-household-members.sql)
    > — it only adds a column, nothing is deleted.
+   >
+   > Database created before per-person contact info existed? Also run
+   > [`supabase/upgrade-people-contacts.sql`](supabase/upgrade-people-contacts.sql)
+   > — additive only.
 3. Go to **Project Settings → API** and note down:
    - the **Project URL**
    - the **anon public** key
