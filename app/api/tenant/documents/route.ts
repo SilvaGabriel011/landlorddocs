@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { classifyDocument } from "@/lib/classify";
 import { getApplicant } from "@/lib/tenant";
+import { cleanPersonName, samePerson } from "@/lib/people";
 
 export const dynamic = "force-dynamic";
 // Uploading + classifying several documents can take a while.
@@ -13,29 +14,6 @@ const MAX_SIZE = 15 * 1024 * 1024; // 15 MB, keeps the AI call within limits
 // Sent as the "person" field when the AI should figure out who each
 // document belongs to.
 const AUTO_PERSON = "__auto__";
-
-// Accent-insensitive, case-insensitive name for comparisons.
-function normName(s: string): string {
-  return s
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-// "Gabriel" matches "Gabriel Silva"; "Andreia Silva" matches "Andreia".
-function samePerson(a: string, b: string): boolean {
-  const na = normName(a);
-  const nb = normName(b);
-  if (!na || !nb) return false;
-  return (
-    na === nb ||
-    na.includes(nb) ||
-    nb.includes(na) ||
-    na.split(" ")[0] === nb.split(" ")[0]
-  );
-}
 
 // Uploads one or more documents for the signed-in applicant. Each file is
 // stored in the private bucket, then classified by the AI (when configured).
@@ -55,9 +33,7 @@ export async function POST(request: Request) {
   const autoAssign = personField === AUTO_PERSON;
   // Manual mode: which household member this batch belongs to. Empty
   // means the account holder (main applicant).
-  const personName = autoAssign
-    ? null
-    : personField.replace(/\s+/g, " ").slice(0, 80) || null;
+  const personName = autoAssign ? null : cleanPersonName(personField) || null;
   const roleRaw = String(form?.get("role") ?? "");
   const personRole =
     !autoAssign &&
@@ -101,17 +77,21 @@ export async function POST(request: Request) {
   }
 
   // Maps the AI's answer to: null (main applicant), an existing person's
-  // exact name, or a brand-new person.
+  // exact name, or a brand-new person. knownPeople grows as the batch is
+  // processed so every variant of a new name lands in one group.
   function resolvePerson(aiName: string | null): string | null {
     if (!aiName) return null;
     if (samePerson(aiName, applicant!.name)) return null;
     for (const p of knownPeople) {
       if (samePerson(aiName, p)) return p;
     }
-    return aiName;
+    const cleaned = cleanPersonName(aiName);
+    knownPeople.push(cleaned);
+    return cleaned;
   }
 
-  const results = await Promise.all(
+  // Stage 1 (parallel): store the file and classify it.
+  const staged = await Promise.all(
     files.map(async (file) => {
       const buffer = Buffer.from(await file.arrayBuffer());
 
@@ -122,7 +102,13 @@ export async function POST(request: Request) {
         .from("documents")
         .upload(filePath, buffer, { contentType: file.type });
       if (uploadError) {
-        return { file: file.name, error: uploadError.message };
+        return {
+          file: file.name,
+          error: uploadError.message,
+          filePath: "",
+          mimeType: file.type,
+          classification: null,
+        };
       }
 
       const classification = await classifyDocument(
@@ -134,32 +120,51 @@ export async function POST(request: Request) {
           : undefined
       );
 
-      const resolvedPerson = autoAssign
-        ? resolvePerson(classification?.personName ?? null)
-        : personName;
-      const resolvedRole = autoAssign
-        ? resolvedPerson
-          ? (classification?.personRole ?? null)
-          : null
-        : personRole;
-
-      const { error: insertError } = await supabase.from("documents").insert({
-        applicant_id: applicant!.id,
-        name: classification?.title || file.name,
-        file_path: filePath,
-        mime_type: file.type,
-        doc_type: classification?.docType ?? null,
-        person_name: resolvedPerson,
-        person_role: resolvedRole,
-      });
-
-      if (insertError) {
-        await supabase.storage.from("documents").remove([filePath]);
-        return { file: file.name, error: "could not be saved" };
-      }
-      return { file: file.name };
+      return {
+        file: file.name,
+        error: "",
+        filePath,
+        mimeType: file.type,
+        classification,
+      };
     })
   );
+
+  // Stage 2 (serial): resolve who each document belongs to — serial so
+  // that name variants inside the same batch resolve consistently.
+  const results: { file: string; error?: string }[] = [];
+  for (const item of staged) {
+    if (item.error) {
+      results.push({ file: item.file, error: item.error });
+      continue;
+    }
+
+    const resolvedPerson = autoAssign
+      ? resolvePerson(item.classification?.personName ?? null)
+      : personName;
+    const resolvedRole = autoAssign
+      ? resolvedPerson
+        ? (item.classification?.personRole ?? null)
+        : null
+      : personRole;
+
+    const { error: insertError } = await supabase.from("documents").insert({
+      applicant_id: applicant.id,
+      name: item.classification?.title || item.file,
+      file_path: item.filePath,
+      mime_type: item.mimeType,
+      doc_type: item.classification?.docType ?? null,
+      person_name: resolvedPerson,
+      person_role: resolvedRole,
+    });
+
+    if (insertError) {
+      await supabase.storage.from("documents").remove([item.filePath]);
+      results.push({ file: item.file, error: "could not be saved" });
+      continue;
+    }
+    results.push({ file: item.file });
+  }
 
   const failed = results.filter((r) => "error" in r && r.error);
   if (failed.length > 0) {

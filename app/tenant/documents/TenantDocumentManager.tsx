@@ -90,6 +90,47 @@ export default function TenantDocumentManager({
     router.refresh();
   }
 
+  const [personBusy, setPersonBusy] = useState<string | null>(null);
+
+  async function patchPerson(
+    from: string,
+    changes: { to?: string | null; role?: string | null }
+  ) {
+    setPersonBusy(from);
+    setError(null);
+    const res = await fetch("/api/tenant/people", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ from, ...changes }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      setError(data?.error ?? "Could not update this person.");
+    }
+    setPersonBusy(null);
+    router.refresh();
+  }
+
+  function handleRename(from: string) {
+    const to = prompt(
+      "New name for this person (their documents move with them; using your own name merges them into you):",
+      from
+    );
+    if (to === null) return;
+    patchPerson(from, { to: to.trim() });
+  }
+
+  function handleMakeMe(from: string) {
+    if (
+      !confirm(
+        `Move all of "${from}"'s documents to you (${applicantName})? Use this when the AI split your own documents under a different name.`
+      )
+    ) {
+      return;
+    }
+    patchPerson(from, { to: null });
+  }
+
   async function handleDelete(doc: Document) {
     if (!confirm(`Delete "${doc.name}"? The landlord will no longer see it.`)) {
       return;
@@ -132,8 +173,84 @@ export default function TenantDocumentManager({
       return { label, docs };
     });
 
+  // People overview for the manage section: name, role and doc count.
+  const people = groups.map((g) => {
+    const raw = g.docs[0]?.person_name ?? null;
+    return {
+      key: g.label,
+      name: raw,
+      isMain: raw === null,
+      role: g.docs.find((d) => d.person_role)?.person_role ?? null,
+      count: g.docs.length,
+    };
+  });
+
   return (
     <div className="stack">
+      {people.length > 0 && (
+        <div className="card stack">
+          <div>
+            <h2>People on this application</h2>
+            <p className="muted">
+              Fix a name, merge duplicates (rename one to the other&apos;s
+              name, or use &quot;This is me&quot;), and tag each person.
+            </p>
+          </div>
+          <ul className="item-list">
+            {people.map((p) => (
+              <li key={p.key} className="item">
+                <div>
+                  <div className="item-title">
+                    {p.isMain ? `${applicantName} (you)` : p.name}
+                  </div>
+                  <div className="muted">
+                    {p.isMain
+                      ? "Main applicant"
+                      : p.role === "resident"
+                        ? "Moving in"
+                        : p.role === "supporter"
+                          ? "Supporter"
+                          : "No tag yet"}{" "}
+                    · {p.count} document{p.count === 1 ? "" : "s"}
+                  </div>
+                </div>
+                {!p.isMain && p.name && (
+                  <div className="row">
+                    <select
+                      aria-label={`Tag for ${p.name}`}
+                      value={p.role ?? ""}
+                      disabled={personBusy === p.name}
+                      onChange={(e) =>
+                        patchPerson(p.name!, { role: e.target.value || null })
+                      }
+                      style={{ width: "auto" }}
+                    >
+                      <option value="">No tag</option>
+                      <option value="resident">Moving in</option>
+                      <option value="supporter">Supporter</option>
+                    </select>
+                    <button
+                      className="btn btn-secondary btn-small"
+                      onClick={() => handleRename(p.name!)}
+                      disabled={personBusy === p.name}
+                    >
+                      Rename
+                    </button>
+                    <button
+                      className="btn btn-secondary btn-small"
+                      onClick={() => handleMakeMe(p.name!)}
+                      disabled={personBusy === p.name}
+                    >
+                      This is me
+                    </button>
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <form onSubmit={handleUpload} className="card stack">
         <h2>Add documents</h2>
         <div>
