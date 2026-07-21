@@ -9,13 +9,14 @@ How it works:
 1. An **applicant** (someone who wants to rent) creates an account with
    their **name, email, and a 4-digit PIN** of their choice. Next time,
    they sign back in with just **name + PIN**.
-2. They upload their documents — PDF, PNG, or JPEG, **several at once** —
-   and can file each batch under another person on the application
-   (someone **moving in with them** or a **supporter** — guarantor /
-   co-signer), keeping the whole application in one account. If an
-   OpenAI API key is configured, each document is read by the AI and
-   **categorized automatically** ("Pay stub", "Bank statement", "ID
-   document"…) with a clean title.
+2. They upload their documents — PDF, PNG, or JPEG, **several at once**.
+   With an OpenAI API key configured, the default "Automatic" mode lets
+   them **mix everyone's files in one upload**: the AI reads each
+   document, gives it a clean title and category ("Pay stub", "Bank
+   statement"…), and **files it under the right person** — the applicant
+   themselves, someone moving in with them, or a supporter (guarantor /
+   co-signer), which it flags when a document makes it clear. Each batch
+   can also be assigned to a person manually.
 3. The **landlord** needs **no account**: they open the app, tap
    "I'm the landlord", and see every application — alone or with its
    people — each with a per-person summary
