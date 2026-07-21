@@ -10,9 +10,36 @@ export const maxDuration = 60;
 const ACCEPTED_TYPES = ["application/pdf", "image/png", "image/jpeg"];
 const MAX_SIZE = 15 * 1024 * 1024; // 15 MB, keeps the AI call within limits
 
+// Sent as the "person" field when the AI should figure out who each
+// document belongs to.
+const AUTO_PERSON = "__auto__";
+
+// Accent-insensitive, case-insensitive name for comparisons.
+function normName(s: string): string {
+  return s
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+// "Gabriel" matches "Gabriel Silva"; "Andreia Silva" matches "Andreia".
+function samePerson(a: string, b: string): boolean {
+  const na = normName(a);
+  const nb = normName(b);
+  if (!na || !nb) return false;
+  return (
+    na === nb ||
+    na.includes(nb) ||
+    nb.includes(na) ||
+    na.split(" ")[0] === nb.split(" ")[0]
+  );
+}
+
 // Uploads one or more documents for the signed-in applicant. Each file is
-// stored in the private bucket, then classified by the AI (when configured)
-// so the landlord sees a category summary.
+// stored in the private bucket, then classified by the AI (when configured).
+// With person="__auto__", the AI also decides who each file belongs to.
 export async function POST(request: Request) {
   const applicant = await getApplicant();
   if (!applicant) {
@@ -23,16 +50,19 @@ export async function POST(request: Request) {
   const files = (form?.getAll("files") ?? []).filter(
     (f): f is File => f instanceof File
   );
-  // Which household member this batch belongs to. Empty means the
-  // account holder (main applicant).
-  const personName =
-    String(form?.get("person") ?? "")
-      .trim()
-      .replace(/\s+/g, " ")
-      .slice(0, 80) || null;
+
+  const personField = String(form?.get("person") ?? "").trim();
+  const autoAssign = personField === AUTO_PERSON;
+  // Manual mode: which household member this batch belongs to. Empty
+  // means the account holder (main applicant).
+  const personName = autoAssign
+    ? null
+    : personField.replace(/\s+/g, " ").slice(0, 80) || null;
   const roleRaw = String(form?.get("role") ?? "");
   const personRole =
-    personName && (roleRaw === "resident" || roleRaw === "supporter")
+    !autoAssign &&
+    personName &&
+    (roleRaw === "resident" || roleRaw === "supporter")
       ? roleRaw
       : null;
 
@@ -56,6 +86,31 @@ export async function POST(request: Request) {
 
   const supabase = createAdminClient();
 
+  // In automatic mode the AI matches against people already on the
+  // application, so spellings stay consistent across batches.
+  let knownPeople: string[] = [];
+  if (autoAssign) {
+    const { data: existing } = await supabase
+      .from("documents")
+      .select("person_name")
+      .eq("applicant_id", applicant.id)
+      .not("person_name", "is", null);
+    knownPeople = Array.from(
+      new Set((existing ?? []).map((r) => r.person_name as string))
+    );
+  }
+
+  // Maps the AI's answer to: null (main applicant), an existing person's
+  // exact name, or a brand-new person.
+  function resolvePerson(aiName: string | null): string | null {
+    if (!aiName) return null;
+    if (samePerson(aiName, applicant!.name)) return null;
+    for (const p of knownPeople) {
+      if (samePerson(aiName, p)) return p;
+    }
+    return aiName;
+  }
+
   const results = await Promise.all(
     files.map(async (file) => {
       const buffer = Buffer.from(await file.arrayBuffer());
@@ -73,17 +128,29 @@ export async function POST(request: Request) {
       const classification = await classifyDocument(
         buffer,
         file.type,
-        file.name
+        file.name,
+        autoAssign
+          ? { applicantName: applicant!.name, knownPeople }
+          : undefined
       );
 
+      const resolvedPerson = autoAssign
+        ? resolvePerson(classification?.personName ?? null)
+        : personName;
+      const resolvedRole = autoAssign
+        ? resolvedPerson
+          ? (classification?.personRole ?? null)
+          : null
+        : personRole;
+
       const { error: insertError } = await supabase.from("documents").insert({
-        applicant_id: applicant.id,
+        applicant_id: applicant!.id,
         name: classification?.title || file.name,
         file_path: filePath,
         mime_type: file.type,
         doc_type: classification?.docType ?? null,
-        person_name: personName,
-        person_role: personRole,
+        person_name: resolvedPerson,
+        person_role: resolvedRole,
       });
 
       if (insertError) {

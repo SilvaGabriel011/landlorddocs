@@ -14,6 +14,7 @@ type Document = {
 };
 
 const NEW_PERSON = "__new__";
+const AUTO_PERSON = "__auto__";
 
 export function roleLabel(role: string | null): string | null {
   if (role === "resident") return "will live here";
@@ -31,7 +32,7 @@ export default function TenantDocumentManager({
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [files, setFiles] = useState<File[]>([]);
-  const [person, setPerson] = useState("");
+  const [person, setPerson] = useState(AUTO_PERSON);
   const [newPerson, setNewPerson] = useState("");
   const [role, setRole] = useState("resident");
   const [error, setError] = useState<string | null>(null);
@@ -64,6 +65,8 @@ export default function TenantDocumentManager({
     for (const file of files) form.append("files", file);
     form.append("person", personName);
     if (person === NEW_PERSON) form.append("role", role);
+    // AUTO_PERSON goes through as-is: the server asks the AI to figure
+    // out who each file belongs to.
 
     const res = await fetch("/api/tenant/documents", {
       method: "POST",
@@ -79,7 +82,7 @@ export default function TenantDocumentManager({
     }
 
     setFiles([]);
-    setPerson("");
+    setPerson(AUTO_PERSON);
     setNewPerson("");
     setRole("resident");
     if (fileInputRef.current) fileInputRef.current.value = "";
@@ -140,6 +143,9 @@ export default function TenantDocumentManager({
             value={person}
             onChange={(e) => setPerson(e.target.value)}
           >
+            <option value={AUTO_PERSON}>
+              Automatic — let the AI sort them by person
+            </option>
             <option value="">{applicantName} (me)</option>
             {knownPeople.map((name) => (
               <option key={name} value={name}>
@@ -148,6 +154,12 @@ export default function TenantDocumentManager({
             ))}
             <option value={NEW_PERSON}>Someone else…</option>
           </select>
+          {person === AUTO_PERSON && (
+            <p className="muted" style={{ marginTop: 4 }}>
+              Mix everyone&apos;s files in one upload — the AI reads each
+              document and files it under the right person.
+            </p>
+          )}
         </div>
         {person === NEW_PERSON && (
           <>
