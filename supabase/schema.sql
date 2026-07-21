@@ -36,6 +36,10 @@ create table if not exists public.documents (
   -- Category the AI assigned on upload ("Pay stub", "Bank statement", ...).
   -- Null when the OpenAI key is not configured or classification failed.
   doc_type text,
+  -- Who on the application this document belongs to. Null means the
+  -- account holder (main applicant); otherwise a household member's
+  -- name ("spouse", "mother", ...) as typed by the account holder.
+  person_name text,
   created_at timestamptz not null default now()
 );
 

@@ -23,6 +23,13 @@ export async function POST(request: Request) {
   const files = (form?.getAll("files") ?? []).filter(
     (f): f is File => f instanceof File
   );
+  // Which household member this batch belongs to. Empty means the
+  // account holder (main applicant).
+  const personName =
+    String(form?.get("person") ?? "")
+      .trim()
+      .replace(/\s+/g, " ")
+      .slice(0, 80) || null;
 
   if (files.length === 0) {
     return NextResponse.json({ error: "No files sent" }, { status: 400 });
@@ -70,6 +77,7 @@ export async function POST(request: Request) {
         file_path: filePath,
         mime_type: file.type,
         doc_type: classification?.docType ?? null,
+        person_name: personName,
       });
 
       if (insertError) {
