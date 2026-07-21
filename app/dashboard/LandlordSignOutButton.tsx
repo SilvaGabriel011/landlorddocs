@@ -1,15 +1,13 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
 
-export default function SignOutButton() {
+export default function LandlordSignOutButton() {
   const router = useRouter();
 
   async function signOut() {
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    router.push("/login");
+    await fetch("/api/landlord/logout", { method: "POST" });
+    router.push("/");
     router.refresh();
   }
 

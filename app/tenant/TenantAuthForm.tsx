@@ -158,7 +158,7 @@ export default function TenantAuthForm() {
       </p>
 
       <p className="muted">
-        Are you the landlord? <a href="/login">Sign in here</a>.
+        Are you the landlord? <a href="/dashboard">View the applications</a>.
       </p>
     </div>
   );

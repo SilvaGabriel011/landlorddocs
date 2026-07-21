@@ -1,16 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
 import { getApplicant } from "@/lib/tenant";
 import Brand from "./components/Brand";
 
 export default async function Home() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (user) redirect("/dashboard");
-
   const applicant = await getApplicant();
   if (applicant) redirect("/tenant/documents");
 
@@ -29,10 +22,10 @@ export default async function Home() {
             Create an account and upload your documents.
           </div>
         </Link>
-        <Link href="/login" className="doc-link">
+        <Link href="/dashboard" className="doc-link landlord-entry">
           I&apos;m the landlord
           <div className="muted" style={{ fontWeight: 400 }}>
-            Sign in to review each applicant&apos;s documents.
+            See each application and its documents — no account needed.
           </div>
         </Link>
       </div>

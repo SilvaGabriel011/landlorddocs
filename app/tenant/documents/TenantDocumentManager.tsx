@@ -9,10 +9,17 @@ type Document = {
   mime_type: string;
   doc_type: string | null;
   person_name: string | null;
+  person_role: string | null;
   created_at: string;
 };
 
 const NEW_PERSON = "__new__";
+
+export function roleLabel(role: string | null): string | null {
+  if (role === "resident") return "will live here";
+  if (role === "supporter") return "supporter";
+  return null;
+}
 
 export default function TenantDocumentManager({
   applicantName,
@@ -26,6 +33,7 @@ export default function TenantDocumentManager({
   const [files, setFiles] = useState<File[]>([]);
   const [person, setPerson] = useState("");
   const [newPerson, setNewPerson] = useState("");
+  const [role, setRole] = useState("resident");
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -55,6 +63,7 @@ export default function TenantDocumentManager({
     const form = new FormData();
     for (const file of files) form.append("files", file);
     form.append("person", personName);
+    if (person === NEW_PERSON) form.append("role", role);
 
     const res = await fetch("/api/tenant/documents", {
       method: "POST",
@@ -72,6 +81,7 @@ export default function TenantDocumentManager({
     setFiles([]);
     setPerson("");
     setNewPerson("");
+    setRole("resident");
     if (fileInputRef.current) fileInputRef.current.value = "";
     setUploading(false);
     router.refresh();
@@ -98,8 +108,8 @@ export default function TenantDocumentManager({
     router.refresh();
   }
 
-  // Group the list by person, the main applicant first.
-  const groups: { label: string; docs: Document[] }[] = [];
+  // Group the list by person, the main applicant first. A person's role
+  // comes from the first of their documents that has one.
   const byPerson = new Map<string, Document[]>();
   for (const doc of documents) {
     const key = doc.person_name ?? "";
@@ -107,11 +117,17 @@ export default function TenantDocumentManager({
     list.push(doc);
     byPerson.set(key, list);
   }
-  for (const [key, docs] of Array.from(byPerson.entries()).sort(([a], [b]) =>
-    a === "" ? -1 : b === "" ? 1 : a.localeCompare(b)
-  )) {
-    groups.push({ label: key === "" ? `${applicantName} (you)` : key, docs });
-  }
+  const groups = Array.from(byPerson.entries())
+    .sort(([a], [b]) => (a === "" ? -1 : b === "" ? 1 : a.localeCompare(b)))
+    .map(([key, docs]) => {
+      const label =
+        key === ""
+          ? `${applicantName} (you)`
+          : [key, roleLabel(docs.find((d) => d.person_role)?.person_role ?? null)]
+              .filter(Boolean)
+              .join(" — ");
+      return { label, docs };
+    });
 
   return (
     <div className="stack">
@@ -134,17 +150,32 @@ export default function TenantDocumentManager({
           </select>
         </div>
         {person === NEW_PERSON && (
-          <div>
-            <label htmlFor="doc-person-name">Their name</label>
-            <input
-              id="doc-person-name"
-              type="text"
-              placeholder="e.g. Ana Souza (spouse)"
-              value={newPerson}
-              onChange={(e) => setNewPerson(e.target.value)}
-              required
-            />
-          </div>
+          <>
+            <div>
+              <label htmlFor="doc-person-name">Their name</label>
+              <input
+                id="doc-person-name"
+                type="text"
+                placeholder="e.g. Ana Souza"
+                value={newPerson}
+                onChange={(e) => setNewPerson(e.target.value)}
+                required
+              />
+            </div>
+            <div>
+              <label htmlFor="doc-person-role">They are…</label>
+              <select
+                id="doc-person-role"
+                value={role}
+                onChange={(e) => setRole(e.target.value)}
+              >
+                <option value="resident">moving in with me</option>
+                <option value="supporter">
+                  a supporter (guarantor / co-signer)
+                </option>
+              </select>
+            </div>
+          </>
         )}
         <div>
           <label htmlFor="doc-files">

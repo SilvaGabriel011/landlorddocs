@@ -30,6 +30,11 @@ export async function POST(request: Request) {
       .trim()
       .replace(/\s+/g, " ")
       .slice(0, 80) || null;
+  const roleRaw = String(form?.get("role") ?? "");
+  const personRole =
+    personName && (roleRaw === "resident" || roleRaw === "supporter")
+      ? roleRaw
+      : null;
 
   if (files.length === 0) {
     return NextResponse.json({ error: "No files sent" }, { status: 400 });
@@ -78,6 +83,7 @@ export async function POST(request: Request) {
         mime_type: file.type,
         doc_type: classification?.docType ?? null,
         person_name: personName,
+        person_role: personRole,
       });
 
       if (insertError) {

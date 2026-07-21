@@ -1,8 +1,15 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { isLandlord } from "@/lib/landlord";
 
-type DocRow = { doc_type: string | null; person_name: string | null };
+export const dynamic = "force-dynamic";
+
+type DocRow = {
+  doc_type: string | null;
+  person_name: string | null;
+  person_role: string | null;
+};
 
 type ApplicantRow = {
   id: string;
@@ -11,6 +18,12 @@ type ApplicantRow = {
   created_at: string;
   documents: DocRow[];
 };
+
+function roleLabel(role: string | null): string | null {
+  if (role === "resident") return "moving in";
+  if (role === "supporter") return "supporter";
+  return null;
+}
 
 // "Pay stub × 2 · Bank statement × 1" for one person's documents.
 function typeSummary(documents: DocRow[]): string {
@@ -36,23 +49,25 @@ function personSummaries(applicant: ApplicantRow): string[] {
   }
   return Array.from(byPerson.entries())
     .sort(([a], [b]) => (a === "" ? -1 : b === "" ? 1 : a.localeCompare(b)))
-    .map(
-      ([person, docs]) =>
-        `${person === "" ? applicant.name : person}: ${typeSummary(docs)}`
-    );
+    .map(([person, docs]) => {
+      const role = roleLabel(
+        docs.find((d) => d.person_role)?.person_role ?? null
+      );
+      const who =
+        person === "" ? applicant.name : role ? `${person} (${role})` : person;
+      return `${who}: ${typeSummary(docs)}`;
+    });
 }
 
 export default async function DashboardPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  if (!(await isLandlord())) redirect("/login");
 
-  if (!user) redirect("/login");
-
+  const supabase = createAdminClient();
   const { data } = await supabase
     .from("applicants")
-    .select("id, name, email, created_at, documents(doc_type, person_name)")
+    .select(
+      "id, name, email, created_at, documents(doc_type, person_name, person_role)"
+    )
     .order("created_at", { ascending: false });
 
   const applicants = (data ?? []) as ApplicantRow[];
@@ -60,10 +75,10 @@ export default async function DashboardPage() {
   return (
     <div className="stack">
       <div>
-        <h1>Applicants</h1>
+        <h1>Applications</h1>
         <p className="muted">
-          Everyone who registered to send you documents. Click a name to see
-          their files.
+          Everyone who registered to send you documents — alone or with the
+          people applying with them. Tap a name to see the files.
         </p>
       </div>
 
