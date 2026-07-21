@@ -1,29 +1,25 @@
-# LandlordDocs
+# RentFolio
 
-A small web app for sharing your rental application documents (financial
-statements, pay stubs, references, etc.) with landlords.
+A small web app where people applying to rent upload their application
+documents (pay stubs, bank statements, references…) and the landlord
+reviews everything in one place.
 
 How it works:
 
-1. **You** sign in, upload your documents (PDF, PNG, or JPEG) and give each
-   one a name.
-2. You can **invite other people** on your application (a partner, roommate,
-   guarantor…) to upload documents through a link, without an account. You
-   decide which documents to request from each person — the name and the
-   accepted file type (PDF, image, or either) of every one.
-3. You create a **share link** for each landlord and decide **how long the
-   link stays valid** (1, 3, 7, or 30 days — or any custom date and time).
-   A link can include documents from everyone on the application.
-4. The **landlord** opens the link — no account needed — and sees how many
-   people are on the application and each person's documents. Clicking a
-   name opens the PDF or image, with a download button.
-5. The **Activity** page shows you what the landlord did: when they opened
-   the link and which documents they viewed, downloaded, or printed.
-   (Printing is only detected when done in the browser — printing a file
-   after downloading it happens outside the app and cannot be seen.)
-6. When the link expires (or you delete it), the landlord immediately loses
-   access. The files themselves live in a private Supabase Storage bucket
-   and are only ever served through short-lived signed URLs.
+1. An **applicant** (someone who wants to rent) creates an account with
+   their **name, email, and a 4-digit PIN** of their choice. Next time,
+   they sign back in with just **name + PIN**.
+2. They upload their documents — PDF, PNG, or JPEG, **several at once**.
+   If an OpenAI API key is configured, each document is read by the AI and
+   **categorized automatically** ("Pay stub", "Bank statement", "ID
+   document"…) with a clean title.
+3. The **landlord** signs in with email + password and sees the **list of
+   applicants**, each with a summary of what they sent
+   (`Pay stub × 2 · Bank statement × 1`).
+4. Clicking an applicant shows their documents, with **view** and
+   **download** buttons.
+5. Files live in a private Supabase Storage bucket and are only served
+   through short-lived signed URLs — there are no public file links.
 
 Built with [Next.js](https://nextjs.org) (App Router) and
 [Supabase](https://supabase.com) (auth, Postgres, storage). Ready to deploy
@@ -37,51 +33,72 @@ on [Vercel](https://vercel.com).
    the tables, the security policies, and the private `documents` storage
    bucket.
 
-   > Already ran an older version of `schema.sql`? Run
-   > [`supabase/upgrade-invites-activity.sql`](supabase/upgrade-invites-activity.sql)
-   > instead — it only adds the invite and activity tables.
+   > Coming from the old share-link version of this app? Run
+   > [`supabase/upgrade-tenant-login.sql`](supabase/upgrade-tenant-login.sql)
+   > instead — note that it deletes the old model's data (documents, share
+   > links, invites, activity).
 3. Go to **Project Settings → API** and note down:
    - the **Project URL**
    - the **anon public** key
    - the **service_role** key (keep this one secret!)
 
-## 2. Run locally
+## 2. (Optional) Get an OpenAI API key
+
+For automatic document categorization, create an API key at
+[platform.openai.com](https://platform.openai.com/api-keys). Without it the
+app still works — documents are simply listed without categories.
+
+The model defaults to `gpt-5-mini` (cheap and good enough for
+classification). Set `OPENAI_MODEL` to any other vision-capable model if
+you prefer.
+
+## 3. Run locally
 
 ```bash
-cp .env.example .env.local   # then fill in the three values from step 1.3
+cp .env.example .env.local   # then fill in the values (see the comments)
 npm install
 npm run dev
 ```
 
-Open http://localhost:3000, create your account on the login page, and
-start uploading.
+Open http://localhost:3000:
 
-> Tip: after you have created your own account, you can turn off new
+- **Landlord:** go to "I'm the landlord", create your account (email +
+  password), and you'll land on the applicant list.
+- **Applicants:** go to "I'm applying to rent", register with name +
+  email + a 4-digit PIN, and upload documents.
+
+> Tip: after you have created your own landlord account, turn off new
 > sign-ups in Supabase (**Authentication → Sign In / Up → disable
-> "Allow new users to sign up"**) so nobody else can register on your app.
-> Sign-ups only see their own data either way, but disabling keeps things
-> tidy.
+> "Allow new users to sign up"**) so nobody else can register as a
+> landlord. Applicant accounts are separate and stay open.
 
-## 3. Deploy to Vercel
+## 4. Deploy to Vercel
 
 1. Push this repository to GitHub and import it in
    [vercel.com/new](https://vercel.com/new) (framework preset:
    **Next.js** — detected automatically).
-2. In the Vercel project settings, add the same three environment
-   variables:
+2. In the Vercel project settings, add the environment variables:
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
    - `SUPABASE_SERVICE_ROLE_KEY`
-3. Deploy. Your share links will look like
-   `https://your-app.vercel.app/share/<token>`.
+   - `OPENAI_API_KEY` (optional, for auto-categorization)
+   - `SESSION_SECRET` (optional but recommended — any long random string)
+3. Deploy, and share the app URL with your applicants.
 
 ## Notes on security
 
-- All database tables use row level security: a logged-in user can only
-  see and manage their own documents and links.
-- The storage bucket is private. Landlords never get a permanent file URL —
-  the app checks the share token and its expiration on every request, then
-  redirects to a signed URL that is valid for 5 minutes.
-- The `SUPABASE_SERVICE_ROLE_KEY` is only used in server code (never
-  shipped to the browser) to resolve share tokens for landlords, who
-  don't have accounts.
+- Landlords are Supabase auth users. Row level security lets them **read**
+  applicants and documents, nothing more.
+- Applicants have no Supabase account: the app server verifies their
+  name + PIN (stored as a scrypt hash in a service-role-only table) and
+  gives them an HMAC-signed, HTTP-only session cookie. All their reads and
+  writes go through server routes.
+- A 4-digit PIN is convenience-grade security: sign-in attempts are
+  throttled, but don't use this app for documents that would be
+  catastrophic to leak — it's designed for the practical case of a rental
+  application, not for secrets.
+- The storage bucket is private. Files are only ever served through
+  signed URLs valid for 5 minutes, after the server has checked who is
+  asking.
+- The `SUPABASE_SERVICE_ROLE_KEY` and `OPENAI_API_KEY` are only used in
+  server code and never shipped to the browser.

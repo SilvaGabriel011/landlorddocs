@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import Brand from "../components/Brand";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -57,11 +58,13 @@ export default function LoginPage() {
     <main className="center-page">
       <div className="card stack" style={{ width: "100%", maxWidth: 400 }}>
         <div>
-          <h1>LandlordDocs</h1>
+          <h1>
+            <Brand size={28} />
+          </h1>
           <p className="muted">
             {mode === "signin"
-              ? "Sign in to manage your documents."
-              : "Create your account."}
+              ? "Landlord sign in — review your applicants' documents."
+              : "Create your landlord account."}
           </p>
         </div>
 
@@ -134,6 +137,10 @@ export default function LoginPage() {
               </a>
             </>
           )}
+        </p>
+
+        <p className="muted">
+          Applying to rent? <a href="/tenant">Sign in here</a>.
         </p>
       </div>
     </main>
