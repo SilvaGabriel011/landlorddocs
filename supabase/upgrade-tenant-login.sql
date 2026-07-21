@@ -1,4 +1,4 @@
--- Migrates an existing LandlordDocs install from the old share-link model
+-- Migrates an existing RentFolio install from the old share-link model
 -- (tenant owns the account, landlord opens links) to the new login model
 -- (landlord owns the account, applicants sign in with name + 4-digit PIN).
 --

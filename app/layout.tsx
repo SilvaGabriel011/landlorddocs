@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "LandlordDocs",
-  description: "Share your rental application documents with landlords securely.",
+  title: "RentFolio",
+  description:
+    "Rental application documents, in one place: applicants upload, the landlord reviews.",
 };
 
 export default function RootLayout({

@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getApplicant } from "@/lib/tenant";
+import Brand from "../../components/Brand";
 import TenantDocumentManager from "./TenantDocumentManager";
 import TenantSignOutButton from "./TenantSignOutButton";
 
@@ -19,7 +20,9 @@ export default async function TenantDocumentsPage() {
     <>
       <nav className="topnav">
         <div className="topnav-inner">
-          <span className="brand">LandlordDocs</span>
+          <span className="brand">
+            <Brand />
+          </span>
           <div className="row">
             <span className="muted">{applicant.name}</span>
             <TenantSignOutButton />

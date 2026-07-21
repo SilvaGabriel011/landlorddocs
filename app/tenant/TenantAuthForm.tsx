@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Brand from "../components/Brand";
 
 export default function TenantAuthForm() {
   const router = useRouter();
@@ -47,7 +48,9 @@ export default function TenantAuthForm() {
   return (
     <div className="card stack" style={{ width: "100%", maxWidth: 400 }}>
       <div>
-        <h1>LandlordDocs</h1>
+        <h1>
+          <Brand size={28} />
+        </h1>
         <p className="muted">
           {mode === "signin"
             ? "Sign in with your name and 4-digit PIN."

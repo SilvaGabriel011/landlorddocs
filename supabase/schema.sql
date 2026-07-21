@@ -1,4 +1,4 @@
--- LandlordDocs database schema (full install).
+-- RentFolio database schema (full install).
 -- Run this once in the Supabase SQL Editor (Dashboard -> SQL Editor -> New query).
 -- If you already ran an OLDER version of this file (the share-link model),
 -- run upgrade-tenant-login.sql instead of running this again.

@@ -1,4 +1,4 @@
-# LandlordDocs
+# RentFolio
 
 A small web app where people applying to rent upload their application
 documents (pay stubs, bank statements, references…) and the landlord

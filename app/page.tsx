@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getApplicant } from "@/lib/tenant";
+import Brand from "./components/Brand";
 
 export default async function Home() {
   const supabase = await createClient();
@@ -17,7 +18,9 @@ export default async function Home() {
     <main className="center-page">
       <div className="stack" style={{ width: "100%", maxWidth: 440 }}>
         <div style={{ textAlign: "center" }}>
-          <h1>LandlordDocs</h1>
+          <h1 style={{ fontSize: "1.8rem" }}>
+            <Brand size={40} />
+          </h1>
           <p className="muted">Rental application documents, in one place.</p>
         </div>
         <Link href="/tenant" className="doc-link">
