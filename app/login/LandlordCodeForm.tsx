@@ -49,9 +49,12 @@ export default function LandlordCodeForm() {
           <input
             id="landlord-code"
             type="password"
+            inputMode="numeric"
+            pattern="\d*"
             value={code}
-            onChange={(e) => setCode(e.target.value)}
+            onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
             required
+            placeholder="••••••"
             autoComplete="current-password"
           />
         </div>
