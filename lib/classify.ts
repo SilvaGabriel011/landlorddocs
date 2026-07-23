@@ -142,7 +142,8 @@ export async function classifyDocument(
 }
 
 // The Responses API returns output as a list of items; find the text.
-function extractOutputText(data: unknown): string | null {
+// Also used by the inspection room classifier (lib/classify-room.ts).
+export function extractOutputText(data: unknown): string | null {
   const d = data as {
     output_text?: string;
     output?: {

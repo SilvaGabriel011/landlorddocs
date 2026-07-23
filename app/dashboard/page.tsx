@@ -82,6 +82,13 @@ export default async function DashboardPage() {
         </p>
       </div>
 
+      <Link href="/dashboard/inspections" className="doc-link">
+        Inspections prior living →
+        <div className="muted" style={{ fontWeight: 400 }}>
+          Photos and videos of the property&apos;s condition, grouped by room.
+        </div>
+      </Link>
+
       {applicants.length === 0 ? (
         <p className="muted">
           Nobody has registered yet. Send applicants to your app&apos;s home

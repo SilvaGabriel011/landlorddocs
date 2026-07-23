@@ -61,6 +61,26 @@ create table if not exists public.documents (
   created_at timestamptz not null default now()
 );
 
+-- Pre-move-in inspection media: photos and videos of the property's
+-- condition, uploaded by the applicant before moving in. Photos are
+-- labeled with the room they show by the AI (when the OpenAI key is
+-- configured); videos are labeled manually at upload.
+create table if not exists public.inspection_media (
+  id uuid primary key default gen_random_uuid(),
+  applicant_id uuid not null references public.applicants (id) on delete cascade,
+  -- Display name: the AI's caption for photos ("Kitchen — bench and
+  -- sink"), or the original filename as fallback / for videos.
+  name text not null,
+  -- Room/part of the house ("Kitchen", "Bathroom", ...). Values come
+  -- from the ROOMS list in lib/rooms.ts. Null = unlabeled. No CHECK
+  -- constraint on purpose: the taxonomy lives in code and may grow
+  -- without another migration.
+  room text,
+  file_path text not null,
+  mime_type text not null,
+  created_at timestamptz not null default now()
+);
+
 -- ============================================================
 -- Row Level Security
 -- Nobody talks to these tables from the browser: applicants sign in with
@@ -73,6 +93,7 @@ alter table public.applicants enable row level security;
 alter table public.applicant_credentials enable row level security;
 alter table public.documents enable row level security;
 alter table public.application_people enable row level security;
+alter table public.inspection_media enable row level security;
 
 -- ============================================================
 -- Storage: private bucket for the document files.

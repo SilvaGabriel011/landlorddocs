@@ -15,6 +15,7 @@ export default function DashboardLayout({
           </Link>
           <div className="row">
             <Link href="/dashboard">Applications</Link>
+            <Link href="/dashboard/inspections">Inspections prior living</Link>
             {landlordCode() && <LandlordSignOutButton />}
           </div>
         </div>

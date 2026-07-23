@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getApplicant } from "@/lib/tenant";
@@ -45,6 +46,13 @@ export default async function TenantDocumentsPage() {
               organized automatically and shared with the landlord.
             </p>
           </div>
+          <Link href="/tenant/inspections" className="doc-link">
+            Inspection — property condition
+            <div className="muted" style={{ fontWeight: 400 }}>
+              Add photos and videos of the house before you move in. Photos
+              are labeled by room automatically.
+            </div>
+          </Link>
           <TenantDocumentManager
             applicantName={applicant.name}
             selfContact={{ email: applicant.email, phone: applicant.phone }}

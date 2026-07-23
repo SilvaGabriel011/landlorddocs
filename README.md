@@ -26,7 +26,16 @@ How it works:
    person's line shows their **email (as a mailto link)** and **phone
    (with a copy button)** when the applicant filled them in — and opening
    a document gives **Print** and **Download** buttons.
-5. Files live in a private Supabase Storage bucket and are only served
+5. Applicants can also record the **property's condition before moving
+   in** ("Inspections prior living"): they upload **photos and videos**
+   of the house, the AI labels each photo with the **room it shows**
+   ("Kitchen", "Bathroom"…), and for videos they pick the room
+   themselves. The landlord sees the whole gallery, grouped by
+   applicant and room, from a dedicated entry in the dashboard.
+   > Note for Vercel deploys: serverless request bodies are capped
+   > around 4.5 MB, so large video uploads need self-hosting (or a
+   > future direct-to-storage upload).
+6. Files live in a private Supabase Storage bucket and are only served
    through short-lived signed URLs — there are no public file links.
 
 Built with [Next.js](https://nextjs.org) (App Router) and
@@ -53,6 +62,10 @@ on [Vercel](https://vercel.com).
    >
    > Database created before per-person contact info existed? Also run
    > [`supabase/upgrade-people-contacts.sql`](supabase/upgrade-people-contacts.sql)
+   > — additive only.
+   >
+   > Database created before inspection media existed? Also run
+   > [`supabase/upgrade-inspections.sql`](supabase/upgrade-inspections.sql)
    > — additive only.
 3. Go to **Project Settings → API** and note down:
    - the **Project URL**
